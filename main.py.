@@ -1,0 +1,120 @@
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.progressbar import ProgressBar
+from kivy.core.window import Window
+from kivy.utils import get_color_from_hex
+from kivy.clock import Clock
+import yt_dlp
+import os
+
+# Fundo escuro premium
+Window.clearcolor = get_color_from_hex('#121212')
+
+class DownloaderApp(App):
+    def build(self):
+        self.title = "Downloader Pro V1.1.6"
+        layout = BoxLayout(orientation='vertical', padding=40, spacing=20)
+        
+        # Cabeçalho
+        layout.add_widget(Label(
+            text="DOWNLOADER [color=3399ff]PRO[/color]", 
+            markup=True, 
+            font_size='32sp', 
+            bold=True, 
+            size_hint_y=None, 
+            height=100
+        ))
+        
+        # Campo de Link Estilizado
+        self.link_input = TextInput(
+            hint_text="Cole o link aqui...",
+            multiline=False,
+            background_color=get_color_from_hex('#1e1e1e'),
+            foreground_color=(1, 1, 1, 1),
+            padding=[15, 25],
+            size_hint_y=None,
+            height=110,
+            font_size='16sp'
+        )
+        
+        # Botão Azul Moderno
+        self.btn = Button(
+            text="BAIXAR AGORA",
+            bold=True,
+            background_normal='',
+            background_color=get_color_from_hex('#3399ff'),
+            size_hint_y=None,
+            height=120
+        )
+        self.btn.bind(on_press=self.baixar)
+        
+        # Elementos de Status e Progresso
+        self.progresso = ProgressBar(max=100, value=0, size_hint_y=None, height=10)
+        self.status = Label(
+            text="Pronto para baixar", 
+            font_size='14sp', 
+            color=get_color_from_hex('#777777')
+        )
+        self.porcentagem = Label(text="0%", font_size='12sp', color=get_color_from_hex('#3399ff'))
+
+        # Montagem do Layout
+        layout.add_widget(self.link_input)
+        layout.add_widget(self.btn)
+        layout.add_widget(self.progresso)
+        layout.add_widget(self.porcentagem)
+        layout.add_widget(self.status)
+        
+        return layout
+
+    def progresso_hook(self, d):
+        if d['status'] == 'downloading':
+            p_str = d.get('_percent_str', '0%').replace('%','').strip()
+            try:
+                val = float(p_str)
+                Clock.schedule_once(lambda dt: self.atualizar_ui(val))
+            except: pass
+        if d['status'] == 'finished':
+            Clock.schedule_once(lambda dt: self.finalizado())
+
+    def atualizar_ui(self, valor):
+        self.progresso.value = valor
+        self.porcentagem.text = f"{int(valor)}%"
+        self.status.text = "⏳ Baixando..."
+
+    def finalizado(self):
+        self.progresso.value = 100
+        self.porcentagem.text = "100%"
+        self.status.text = "✅ CONCLUÍDO! Olhe seus Downloads."
+        self.status.color = get_color_from_hex('#55ff55')
+        self.btn.disabled = False
+
+    def baixar(self, instance):
+        url = self.link_input.text.strip()
+        if not url: return
+        
+        self.btn.disabled = True
+        self.status.text = "🔍 Iniciando..."
+        self.status.color = get_color_from_hex('#777777')
+
+        def rodar(dt):
+            # A lógica que deu certo no teste de força
+            ydl_opts = {
+                'outtmpl': '/storage/emulated/0/Download/%(title)s.%(ext)s',
+                'progress_hooks': [self.progresso_hook],
+                'no_warnings': True,
+            }
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+            except Exception as e:
+                self.status.text = "❌ Erro no link."
+                self.status.color = get_color_from_hex('#ff5555')
+                self.btn.disabled = False
+        
+        Clock.schedule_once(rodar, 0.1)
+
+if __name__ == "__main__":
+    DownloaderApp().run()
